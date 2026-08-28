@@ -275,3 +275,53 @@ def test_generate_fourier_morse_recovers_constant_potential():
         e_expected,
         atol=1e-6,
     )
+
+def test_generate_fourier_morse_recovers_exact_constant_potential_without_interpolation():
+    """End-to-end recovery of an exact orientation-independent Morse surface.
+
+    With interpolation disabled and the true equilibrium distance present on
+    the radial grid, the fitted Fourier-Morse model should reproduce the input
+    potential to numerical precision.
+    """
+    D_true, re_true, alpha = 1.2, 9.0, 1.1
+    screw_dir = 1
+    phis = np.arange(0, 360, 40)
+    r = np.arange(7.0, 11.01, 0.5)  # includes re_true exactly
+
+    rows = []
+    for p1 in phis:
+        for p2 in phis:
+            chi = (p1 - screw_dir * p2) % 360
+            psi = (p1 + screw_dir * p2) % 360
+            for rr in r:
+                rows.append(
+                    dict(
+                        phi1=p1,
+                        phi2=p2,
+                        r=rr,
+                        e=Morse_1D(rr, D_true, re_true, alpha),
+                        chi=chi,
+                        psi=psi,
+                    )
+                )
+    df = pd.DataFrame(rows)
+
+    mol = MoleculeInfo("TEST", 20, 0.0, "", "", "")
+    harmonic_ceils = {"EP": (2, 1)}
+
+    df_model = generate_fourier_morse_data(
+        df,
+        mol,
+        "EP",
+        harmonic_ceils,
+        alpha_fit=False,
+        interpolate=False,
+        print_errors=False,
+    )
+
+    assert len(df_model) == len(df)
+    assert np.allclose(
+        df_model["e"].values,
+        df["e"].values,
+        atol=1e-6,
+    )
