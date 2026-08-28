@@ -109,6 +109,29 @@ def test_fit_alpha_morse_uses_interpolated_minimum():
     assert out["re"].iloc[0] == pytest.approx(minimum["r"])
     assert np.isfinite(out["alpha"].iloc[0])
 
+def test_fit_alpha_morse_recovers_known_alpha_without_interpolation():
+    """An exact Morse profile should recover its known parameters when the
+    sampled minimum is used directly.
+
+    This is an accuracy regression test independent of the quadratic minimum
+    interpolation. The radial grid contains the true equilibrium distance, so
+    D and r_e are known exactly and the alpha fit should recover alpha_true.
+    """
+    D_true, re_true, alpha_true = 1.0, 9.0, 1.25
+    r = np.arange(7.0, 11.01, 0.25)  # includes re_true exactly
+    e = Morse_1D(r, D_true, re_true, alpha_true)
+    df = pd.DataFrame({"phi1": 0, "phi2": 0, "r": r, "e": e})
+
+    out = fit_alpha_morse(
+        df,
+        (0, 0),
+        screw_dir=1,
+        interpolate=False,
+    )
+
+    assert out["D"].iloc[0] == pytest.approx(D_true)
+    assert out["re"].iloc[0] == pytest.approx(re_true)
+    assert out["alpha"].iloc[0] == pytest.approx(alpha_true, rel=1e-3)
 
 def test_fit_alpha_morse_weights_change_result():
     """Different weight functions must yield different fitted alpha values, proving the
